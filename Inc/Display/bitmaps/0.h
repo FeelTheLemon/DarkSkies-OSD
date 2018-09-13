@@ -1,0 +1,9 @@
+const uint8_t bmp_0[] = {
+	0x53, 0x0, 0xd3, 0xd0, 0x74, 0x20, 0xb, 0xa3 
+}; 
+
+const Bitmap Bitmap_0 = {
+	(uint8_t *)bmp_0,	//buffer
+	8,	//width
+	8	//height
+};

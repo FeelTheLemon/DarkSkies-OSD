@@ -1,0 +1,81 @@
+#include <SPI.h>
+
+#include "CVBS.h"
+#include <uart.h>
+
+#define CSYNC 5
+#define VSYNC 4
+#define EVEN 2
+
+unsigned int _WIDTH;
+
+#define V_LINE_START 27
+#define V_LINE_END 302
+
+// dus - 1/10 us
+#define dudelay(dus) for (int i = 0; i < dus; ++i) { __asm__("nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;"); }
+
+volatile uint16_t _line = 0;
+uint8_t *cbuf;
+
+uart_t* _uart = nullptr;
+
+
+void ICACHE_RAM_ATTR HandleCSYNC(void) {
+
+	_line++;
+
+	dudelay(17);
+	//dudelay(20);
+
+	if (_line >= V_LINE_START && _line <= V_LINE_END) {
+
+		//uint8_t *ptr = &cbuf[(_line - V_LINE_START) * ((_WIDTH + 7) / 8)];
+		char *ptr = (char*)&cbuf[(_line - V_LINE_START) * ((_WIDTH + 7) / 8)];
+
+		uart_write(_uart, ptr, 1);//(_WIDTH + 7) / 8);
+
+	}
+}
+
+
+void ICACHE_RAM_ATTR HandleVSYNC(void) {
+	_line = 0;
+}
+
+//void HandleEVEN(void) {}
+
+void CVBS::init(void) {
+
+	cbuf = getBuffer();
+	_WIDTH = WIDTH;
+
+	pinMode(CSYNC, INPUT);
+	pinMode(VSYNC, INPUT);
+	//pinMode(EVEN, INPUT);
+	attachInterrupt(digitalPinToInterrupt(CSYNC), HandleCSYNC, RISING);
+	attachInterrupt(digitalPinToInterrupt(VSYNC), HandleVSYNC, RISING);
+	//attachInterrupt(digitalPinToInterrupt(EVEN), HandleEVEN, CHANGE);
+
+	_uart = uart_init(UART0, 8000000L, (UART_NB_BIT_8 | UART_PARITY_NONE | UART_NB_STOP_BIT_0), UART_TX_ONLY, 15, 0);
+	uart_set_pins(_uart, 15, 13);
+
+	/*uint32_t tmp = 0x00000000;
+
+	tmp |= (1 << UCTXI); //Invert TX
+
+	USC0(UART0) |= (tmp);
+    USC0(UART0) &= ~(tmp);*/
+
+}
+
+void CVBS::clearScreen(void) {
+	memset(cbuf, 0x00, (WIDTH + 7) * HEIGHT / 8);
+}
+
+void CVBS::delayFrame(void) {
+	while (_line <= V_LINE_END) {
+		//__asm__("nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;");
+	}
+}
+
